@@ -18,13 +18,13 @@ async def add_user(user_id: int) -> bool:
     if not isinstance(user_id, int) or user_id <= 0:
         print(f"Invalid user_id: {user_id}")
         return False
-    
+
     try:
-        existing_user = await user_data.find_one({'_id': user_id})
-        if existing_user:
-            return False
-        
-        await user_data.insert_one({'_id': user_id, 'created_at': datetime.utcnow()})
+        await user_data.update_one(
+            {'_id': user_id},
+            {'$setOnInsert': {'_id': user_id, 'created_at': datetime.utcnow()}},
+            upsert=True
+        )
         return True
     except Exception as e:
         print(f"Error adding user {user_id}: {e}")
@@ -100,7 +100,7 @@ async def save_channel(channel_id: int) -> bool:
     if not isinstance(channel_id, int):
         print(f"Invalid channel_id: {channel_id}")
         return False
-    
+
     try:
         await channels_collection.update_one(
             {"channel_id": channel_id},
@@ -150,7 +150,7 @@ async def save_encoded_link(channel_id: int) -> Optional[str]:
     if not isinstance(channel_id, int):
         print(f"Invalid channel_id: {channel_id}")
         return None
-    
+
     try:
         encoded_link = base64.urlsafe_b64encode(str(channel_id).encode()).decode()
         await channels_collection.update_one(
@@ -173,7 +173,7 @@ async def get_channel_by_encoded_link(encoded_link: str) -> Optional[int]:
     """Get a channel ID by its encoded link."""
     if not isinstance(encoded_link, str):
         return None
-    
+
     try:
         channel = await channels_collection.find_one({"encoded_link": encoded_link, "status": "active"})
         return channel["channel_id"] if channel and "channel_id" in channel else None
@@ -186,7 +186,7 @@ async def save_encoded_link2(channel_id: int, encoded_link: str) -> Optional[str
     if not isinstance(channel_id, int) or not isinstance(encoded_link, str):
         print(f"Invalid input: channel_id={channel_id}, encoded_link={encoded_link}")
         return None
-    
+
     try:
         await channels_collection.update_one(
             {"channel_id": channel_id},
@@ -208,7 +208,7 @@ async def get_channel_by_encoded_link2(encoded_link: str) -> Optional[int]:
     """Get a channel ID by its secondary encoded link."""
     if not isinstance(encoded_link, str):
         return None
-    
+
     try:
         channel = await channels_collection.find_one({"req_encoded_link": encoded_link, "status": "active"})
         return channel["channel_id"] if channel and "channel_id" in channel else None
@@ -221,7 +221,7 @@ async def save_invite_link(channel_id: int, invite_link: str, is_request: bool) 
     if not isinstance(channel_id, int) or not isinstance(invite_link, str):
         print(f"Invalid input: channel_id={channel_id}, invite_link={invite_link}")
         return False
-    
+
     try:
         await channels_collection.update_one(
             {"channel_id": channel_id},
@@ -244,7 +244,7 @@ async def get_current_invite_link(channel_id: int) -> Optional[dict]:
     """Get the current invite link and its type for a channel."""
     if not isinstance(channel_id, int):
         return None
-    
+
     try:
         channel = await channels_collection.find_one({"channel_id": channel_id, "status": "active"})
         if channel and "current_invite_link" in channel:
@@ -273,12 +273,12 @@ async def add_fsub_channel(channel_id: int) -> bool:
     if not isinstance(channel_id, int):
         print(f"Invalid channel_id: {channel_id}")
         return False
-    
+
     try:
         existing_channel = await fsub_channels_collection.find_one({'channel_id': channel_id})
         if existing_channel:
             return False
-        
+
         await fsub_channels_collection.insert_one({
             'channel_id': channel_id,
             'created_at': datetime.utcnow(),
@@ -344,3 +344,27 @@ async def is_approval_off(channel_id: int) -> bool:
     except Exception as e:
         print(f"Error checking approval_off for channel {channel_id}: {e}")
         return False
+
+# Variables for plugins
+variables_collection = database['variables']
+
+async def get_variable(name: str, default=None):
+    """Get a variable value from the database."""
+    try:
+        variable = await variables_collection.find_one({'name': name})
+        return variable['value'] if variable else default
+    except Exception as e:
+        print(f"Error getting variable {name}: {e}")
+        return default
+
+async def set_variable(name: str, value):
+    """Set a variable value in the database."""
+    try:
+        await variables_collection.update_one(
+            {'name': name},
+            {'$set': {'name': name, 'value': value}},
+            upsert=True
+        )
+    except Exception as e:
+        print(f"Error setting variable {name}: {e}")
+

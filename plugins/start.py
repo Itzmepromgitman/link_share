@@ -12,7 +12,7 @@ import os
 import asyncio
 from asyncio import sleep
 from asyncio import Lock
-import random 
+import random
 
 from bot import Bot
 from datetime import datetime, timedelta
@@ -27,8 +27,24 @@ channel_locks = defaultdict(asyncio.Lock)
 user_banned_until = {}
 
 # Broadcast variables
-cancel_lock = asyncio.Lock()
+
 is_canceled = False
+
+# Optimization: In-Memory User Cache
+ACTIVE_USERS = set()
+USERS_LOADED = False
+
+async def load_users_cache():
+    global USERS_LOADED
+    if USERS_LOADED:
+        return
+    try:
+        users = await full_userbase()
+        ACTIVE_USERS.update(users)
+        USERS_LOADED = True
+        print(f"Loaded {len(ACTIVE_USERS)} users into cache.")
+    except Exception as e:
+        print(f"Error loading user cache: {e}")
 
 @Bot.on_message(filters.command('start') & filters.private)
 async def start_command(client: Bot, message: Message):
@@ -40,15 +56,21 @@ async def start_command(client: Bot, message: Message):
                 "<b><blockquote expandable>You are temporarily banned from using commands due to spamming. Try again later.</b>",
                 parse_mode=ParseMode.HTML
             )
-            
-    await add_user(user_id)
+
+    # Initialize cache if needed (lazy load on first command, or better to do on startup)
+    if not USERS_LOADED:
+        await load_users_cache()
+
+    if user_id not in ACTIVE_USERS:
+        await add_user(user_id)
+        ACTIVE_USERS.add(user_id)
 
    # ✅ Check Force Subscription
     #if not await is_subscribed(client, user_id):
         #await temp.delete()
         #return await not_joined(client, message)
 
-# 
+#
     # Check FSub requirements
    #  fsub_channels = await get_fsub_channels()
    #  if fsub_channels:
@@ -65,13 +87,13 @@ async def start_command(client: Bot, message: Message):
         try:
             base64_string = text.split(" ", 1)[1]
             is_request = base64_string.startswith("req_")
-            
+
             if is_request:
                 base64_string = base64_string[4:]
                 channel_id = await get_channel_by_encoded_link2(base64_string)
             else:
                 channel_id = await get_channel_by_encoded_link(base64_string)
-            
+
             if not channel_id:
                 return await message.reply_text(
                     "<b><blockquote expandable>Invalid or expired invite link.</b>",
@@ -96,7 +118,7 @@ async def start_command(client: Bot, message: Message):
                 # Check if we already have a valid link
                 old_link_info = await get_current_invite_link(channel_id)
                 current_time = datetime.now()
-                
+
                 # If we have an existing link and it's not expired yet (assuming 5 minutes validity)
                 if old_link_info:
                     link_created_time = await get_link_creation_time(channel_id)
@@ -111,7 +133,7 @@ async def start_command(client: Bot, message: Message):
                             print(f"Revoked old {'request' if old_link_info['is_request'] else 'invite'} link for channel {channel_id}")
                         except Exception as e:
                             print(f"Failed to revoke old link for channel {channel_id}: {e}")
-                        
+
                         # Create new link
                         invite = await client.create_chat_invite_link(
                             chat_id=channel_id,
@@ -139,9 +161,9 @@ async def start_command(client: Bot, message: Message):
                 "⏳",
                 parse_mode=ParseMode.HTML
             )
-            
+
             await wait_msg.delete()
-            
+
             await message.reply_text(
                 "<b><blockquote expandable>ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ! ᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ᴛᴏ ᴘʀᴏᴄᴇᴇᴅ</b>",
                 reply_markup=button,
@@ -172,12 +194,12 @@ async def start_command(client: Bot, message: Message):
                 [InlineKeyboardButton("• Close •", callback_data="close")]
             ]
         )
-        
+
         # Show waiting emoji and instantly delete it
         wait_msg = await message.reply_text("⏳")
         await asyncio.sleep(0.1)
         await wait_msg.delete()
-        
+
         try:
             await message.reply_photo(
                 photo=START_PIC,
@@ -223,7 +245,7 @@ async def not_joined(client: Client, message: Message):
     try:
         all_channels = await db.show_channels()  # Should return list of (chat_id, mode) tuples
         for total, chat_id in enumerate(all_channels, start=1):
-            mode = await db.get_channel_mode(chat_id)  # fetch mode 
+            mode = await db.get_channel_mode(chat_id)  # fetch mode
 
             await message.reply_chat_action(ChatAction.TYPING)
 
@@ -302,14 +324,14 @@ async def close_callback(client: Bot, callback_query):
 async def check_sub_callback(client: Bot, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     fsub_channels = await get_fsub_channels()
-    
+
     if not fsub_channels:
         await callback_query.message.edit_text(
             "<b>No FSub channels configured!</b>",
             parse_mode=ParseMode.HTML
         )
         return
-    
+
     is_subscribed, subscription_message, subscription_buttons = await check_subscription_status(client, user_id, fsub_channels)
     if is_subscribed:
         await callback_query.message.edit_text(
@@ -331,20 +353,20 @@ is_canceled = False
 cancel_lock = Lock()
 
 @Bot.on_message(filters.command('status') & filters.private & is_owner_or_admin)
-async def info(client: Bot, message: Message):   
+async def info(client: Bot, message: Message):
     reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("• Close •", callback_data="close")]])
-    
+
     start_time = time.time()
     temp_msg = await message.reply("<b><i>Processing...</i></b>", quote=True, parse_mode=ParseMode.HTML)
     end_time = time.time()
-    
+
     ping_time = (end_time - start_time) * 1000
-    
+
     users = await full_userbase()
     now = datetime.now()
     delta = now - client.uptime
     bottime = get_readable_time(delta.seconds)
-    
+
     await temp_msg.edit(
         f"<b>Users: {len(users)}\n\nUptime: {bottime}\n\nPing: {ping_time:.2f} ms</b>",
         reply_markup=reply_markup,
@@ -520,7 +542,7 @@ async def monitor_messages(client: Bot, message: Message):
         return
 
     if user_id in ADMINS:
-        return 
+        return
 
     if user_id in user_banned_until and now < user_banned_until[user_id]:
         await message.reply_text(
@@ -547,20 +569,20 @@ async def monitor_messages(client: Bot, message: Message):
 
 @Bot.on_callback_query()
 async def cb_handler(client: Bot, query: CallbackQuery):
-    data = query.data  
+    data = query.data
     chat_id = query.message.chat.id
-    
+
     if data == "close":
         await query.message.delete()
         try:
             await query.message.reply_to_message.delete()
         except:
             pass
-    
+
     elif data == "about":
         user = await client.get_users(OWNER_ID)
         user_link = f"https://t.me/{user.username}" if user.username else f"tg://openmessage?user_id={OWNER_ID}"
-        
+
         await query.edit_message_media(
             InputMediaPhoto(
                 "https://envs.sh/Wdj.jpg",
@@ -573,10 +595,10 @@ async def cb_handler(client: Bot, query: CallbackQuery):
 
     elif data == "channels":
         user = await client.get_users(OWNER_ID)
-        user_link = f"https://t.me/{user.username}" if user.username else f"tg://openmessage?user_id={OWNER_ID}" 
+        user_link = f"https://t.me/{user.username}" if user.username else f"tg://openmessage?user_id={OWNER_ID}"
         ownername = f"<a href={user_link}>{user.first_name}</a>" if user.first_name else f"<a href={user_link}>no name !</a>"
         await query.edit_message_media(
-            InputMediaPhoto("https://envs.sh/Wdj.jpg", 
+            InputMediaPhoto("https://envs.sh/Wdj.jpg",
                             CHANNELS_TXT
             ),
             reply_markup=InlineKeyboardMarkup([
