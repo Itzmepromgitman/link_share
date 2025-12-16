@@ -34,15 +34,6 @@ class Bot(Client):
         usr_bot_me = await self.get_me()
         self.uptime = datetime.now()
 
-        # Notify owner of bot restart
-        try:
-            await self.send_message(
-                chat_id=OWNER_ID,
-                text="<b><blockquote>🤖 Bot Restarted ♻️</blockquote></b>",
-                parse_mode=ParseMode.HTML
-            )
-        except Exception as e:
-            self.LOGGER(__name__).warning(f"Failed to notify owner ({OWNER_ID}) of bot start: {e}")
 
         self.set_parse_mode(ParseMode.HTML)
         self.LOGGER(__name__).info("Bot Running..!\n\nCreated by \nhttps://t.me/ProObito")
