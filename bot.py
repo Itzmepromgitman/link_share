@@ -9,6 +9,7 @@ from config import API_HASH, APP_ID, LOGGER, TG_BOT_TOKEN, TG_BOT_WORKERS, PORT,
 from plugins import web_server
 import pyrogram.utils
 from aiohttp import web
+from database.database import get_variable, set_variable
 
 pyrogram.utils.MIN_CHANNEL_ID = -1009147483647
 
@@ -67,6 +68,19 @@ class Bot(Client):
             ])
         except Exception as e:
             self.LOGGER(__name__).warning(f"Failed to set bot commands: {e}")
+
+        # Sync Owner ID to Database
+        try:
+            current_owners_str = await get_variable("owner", "")
+            current_owners = [int(x.strip()) for x in current_owners_str.split() if x.strip()]
+
+            if OWNER_ID not in current_owners:
+                current_owners.append(OWNER_ID)
+                new_owner_str = " ".join(map(str, current_owners))
+                await set_variable("owner", new_owner_str)
+                self.LOGGER(__name__).info(f"Added Config Owner ID {OWNER_ID} to Database 'owner' variable.")
+        except Exception as e:
+             self.LOGGER(__name__).warning(f"Failed to sync owner ID to DB: {e}")
 
         # Web-response
         try:
