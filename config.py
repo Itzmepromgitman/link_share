@@ -12,6 +12,7 @@ API_HASH = os.environ.get("API_HASH", "863eec9ad6c6d54ceef169cb244d9349")
 # Main
 OWNER_ID = int(os.environ.get("OWNER_ID", "6397757784"))
 PORT = os.environ.get("PORT", "8080")
+USER_SESSION = os.environ.get("USER_SESSION", "")
 
 # Database
 DB_URI = os.environ.get("DB_URI", "mongodb+srv://berthaowens95377_db_user:itzmeproman@cluster0.ovjljsf.mongodb.net/?appName=Cluster0")

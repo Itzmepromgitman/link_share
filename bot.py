@@ -4,6 +4,7 @@ import sys
 from datetime import datetime
 from pyrogram import Client
 from pyrogram.enums import ParseMode
+from pyrogram.types import BotCommand
 from config import API_HASH, APP_ID, LOGGER, TG_BOT_TOKEN, TG_BOT_WORKERS, PORT, OWNER_ID
 from plugins import web_server
 import pyrogram.utils
@@ -46,6 +47,26 @@ class Bot(Client):
         self.LOGGER(__name__).info("Bot Running..!\n\nCreated by \nhttps://t.me/ProObito")
         self.LOGGER(__name__).info(f"{name}")
         self.username = usr_bot_me.username
+
+        # Register Commands
+        try:
+            await self.set_bot_commands([
+                BotCommand("start", "Start the bot"),
+                BotCommand("addch", "Add a channel (Admin)"),
+                BotCommand("delch", "Remove a channel (Admin)"),
+                BotCommand("channels", "Show connected channels"),
+                BotCommand("reqlink", "Show request links"),
+                BotCommand("links", "Show channel links"),
+                BotCommand("bulklink", "Generate multiple links"),
+                BotCommand("genlink", "Encode external link"),
+                BotCommand("reqtime", "Set auto-approve timer"),
+                BotCommand("reqmode", "Toggle auto-approve"),
+                BotCommand("approveon", "Enable auto-approve for channel"),
+                BotCommand("approveoff", "Disable auto-approve for channel"),
+                BotCommand("approveall", "Approve all requests"),
+            ])
+        except Exception as e:
+            self.LOGGER(__name__).warning(f"Failed to set bot commands: {e}")
 
         # Web-response
         try:

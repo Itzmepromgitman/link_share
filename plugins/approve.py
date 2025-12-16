@@ -1,4 +1,4 @@
-# +++ Modified By Yato [telegram username: @i_killed_my_clan & @ProYato] +++ # aNDI BANDI SANDI JISNE BHI CREDIT HATAYA USKI BANDI RAndi 
+# +++ Modified By Yato [telegram username: @i_killed_my_clan & @ProYato] +++ # aNDI BANDI SANDI JISNE BHI CREDIT HATAYA USKI BANDI RAndi
 import os
 import asyncio
 from config import *
@@ -9,8 +9,8 @@ from database.database import set_approval_off, is_approval_off
 from helper_func import *
 
 # Default settings
-APPROVAL_WAIT_TIME = 5  # seconds 
-AUTO_APPROVE_ENABLED = True  # Toggle for enabling/disabling auto approval 
+APPROVAL_WAIT_TIME = 5  # seconds
+AUTO_APPROVE_ENABLED = True  # Toggle for enabling/disabling auto approval
 
 async def get_user_client():
     global user_client
@@ -35,7 +35,7 @@ async def autoapprove(client, message: ChatJoinRequest):
         return
 
     print(f"{user.first_name} requested to join {chat.title}")
-    
+
     await asyncio.sleep(APPROVAL_WAIT_TIME)
 
     # Check if user is already a participant before approving
@@ -49,7 +49,7 @@ async def autoapprove(client, message: ChatJoinRequest):
         pass
 
     await client.approve_chat_join_request(chat_id=chat.id, user_id=user.id)
-    
+
     if APPROVED == "on":
         invite_link = await client.export_chat_invite_link(chat.id)
         buttons = [
@@ -58,7 +58,7 @@ async def autoapprove(client, message: ChatJoinRequest):
         ]
         markup = InlineKeyboardMarkup(buttons)
         caption = f"<b>ʜᴇʏ {user.mention()},\n\n<blockquote> ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ ᴛᴏ ᴊᴏɪɴ _{chat.title} ʜᴀs ʙᴇᴇɴ ᴀᴘᴘʀᴏᴠᴇᴅ.</blockquote> </b>"
-        
+
         await client.send_photo(
             chat_id=user.id,
             photo='https://telegra.ph/file/f3d3aff9ec422158feb05-d2180e3665e0ac4d32.jpg',
@@ -69,20 +69,20 @@ async def autoapprove(client, message: ChatJoinRequest):
 @Client.on_message(filters.command("reqtime") & is_owner_or_admin)
 async def set_reqtime(client, message: Message):
     global APPROVAL_WAIT_TIME
-    
+
     if len(message.command) != 2 or not message.command[1].isdigit():
         return await message.reply_text("Usage: <code>/reqtime {seconds}</code>")
-    
+
     APPROVAL_WAIT_TIME = int(message.command[1])
     await message.reply_text(f"✅ Request approval time set to <b>{APPROVAL_WAIT_TIME}</b> seconds.")
 
 @Client.on_message(filters.command("reqmode") & is_owner_or_admin)
 async def toggle_reqmode(client, message: Message):
     global AUTO_APPROVE_ENABLED
-    
+
     if len(message.command) != 2 or message.command[1].lower() not in ["on", "off"]:
         return await message.reply_text("Usage: <code>/reqmode on</code> or <code>/reqmode off</code>")
-    
+
     mode = message.command[1].lower()
     AUTO_APPROVE_ENABLED = (mode == "on")
     status = "enabled ✅" if AUTO_APPROVE_ENABLED else "disabled ❌"
@@ -109,3 +109,31 @@ async def approve_on_command(client, message: Message):
         await message.reply_text(f"✅ Auto-approval is now <b>ON</b> for channel <code>{channel_id}</code>.")
     else:
         await message.reply_text(f"❌ Failed to set auto-approval ON for channel <code>{channel_id}</code>.")
+
+@Client.on_message(filters.command("approveall") & is_owner_or_admin)
+async def approve_all_command(client, message: Message):
+    if len(message.command) != 2 or not message.command[1].lstrip("-").isdigit():
+        return await message.reply_text("Usage: <code>/approveall {channel_id}</code>")
+
+    channel_id = int(message.command[1])
+    status_msg = await message.reply_text("⏳ Processing all pending requests...")
+
+    try:
+        # Userbot is required for high volume/specific limits or requested by user
+        ub = await get_user_client()
+        if not ub:
+             return await status_msg.edit_text("❌ Userbot is not initialized. Check session string.")
+
+        count = 0
+        async for request in ub.get_chat_join_requests(channel_id):
+            try:
+                await ub.approve_chat_join_request(channel_id, request.user.id)
+                count += 1
+                await asyncio.sleep(0.1) # Avoid flood
+            except Exception as e:
+                print(f"Error approving {request.user.id}: {e}")
+
+        await status_msg.edit_text(f"✅ Approved <b>{count}</b> requests in <code>{channel_id}</code>.")
+
+    except Exception as e:
+        await status_msg.edit_text(f"❌ Error: {str(e)}")
