@@ -44,8 +44,7 @@ ABOUT_TXT = """<b>›› ᴄᴏᴍᴍᴜɴɪᴛʏ: <a href='https://t.me/fair_bo
 ›› ᴅᴀᴛᴀʙᴀsᴇ: <a href='https://www.mongodb.com/docs/'>Mᴏɴɢᴏ ᴅʙ</a>
 ›› ᴅᴇᴠᴇʟᴏᴘᴇʀ: @ReactiveArgon</b></blockquote>""" # Bhosdiwalo agar developer me Yato ka username hataya to agli baar se koi repo public nhi krunga!!
 
-CHANNELS_TXT = """<b>›› ᴀɴɪᴍᴇ ᴄʜᴀɴɴᴇʟ: <a href='https://t.me/animes_Fair'>ᴀɴɪᴍᴇ fair</a>
-›› ᴀᴅᴜʟᴛ ᴄʜᴀɴɴᴇʟs: <a href='https://t.me/cultured_fair'>ᴄᴏʀɴʜᴜʙ</a>
+CHANNELS_TXT = """
 ›› ᴅᴇᴠᴇʟᴏᴘᴇʀ: @ReactiveArgon</b></blockquote>""" # Bhosdiwalo agar developer me Yato ka username hataya to agli baar se koi repo public nhi krunga!!
 
 #--- ---- ---- --- --- --- - -- -  - - - - - - - - - - - --  - -
@@ -55,7 +54,7 @@ USER_REPLY_TEXT = "⚠️ ғᴜᴄᴋ ʏᴏᴜ, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴍʏ
 
 # Logging
 LOG_FILE_NAME = "links-sharingbot.txt"
-DATABASE_CHANNEL = int(os.environ.get("DATABASE_CHANNEL", "-1002888922055")) # Channel where user links are stored
+DATABASE_CHANNEL = int(os.environ.get("DATABASE_CHANNEL", "-1003501687264")) # Channel where user links are stored
 #--- ---- ---- --- --- --- - -- -  - - - - - - - - - - - --  - -
 
 try:
