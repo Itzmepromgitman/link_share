@@ -234,6 +234,7 @@ async def must_join_channel(client: Client, message: Message):
         message.stop_propagation()
     else:
         # User is fine (and cache was updated in not_subscribed)
+        message.continue_propagation()
         pass
 
 @Client.on_message(filters.private)
