@@ -20,41 +20,69 @@ log = LOGGER(__name__)
 AUTH_CACHE = {}  # {user_id: expire_timestamp}
 FSUB_CACHE = {'last_updated': 0, 'fsub': [], 'rsub': [], 'req_links': []}
 
-async def get_cached_fsub_config():
-    """Get FSub config with 60s cache."""
+async def get_cached_fsub_config(client):
+    """Get FSub config with 60s cache and verify bot admin status."""
     now = datetime.utcnow().timestamp()
     if now - FSUB_CACHE['last_updated'] < 60:
         return FSUB_CACHE['fsub'], FSUB_CACHE['rsub'], FSUB_CACHE['req_links']
 
-    # Refresh
-    raw_fsub = await get_variable("F_sub", "-1002374561133 -1002252580234 -1002359972599")
+    # Refresh - Remove Defaults!
+    raw_fsub = await get_variable("F_sub", "")
     fsub_ids = [int(x.strip()) for x in raw_fsub.split() if x.strip()]
+
+    # Verify Admin Status for F_Sub
+    valid_fsub_ids = []
+    for chat_id in fsub_ids:
+        try:
+            member = await client.get_chat_member(chat_id, "me")
+            if member.status in {ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER}:
+                valid_fsub_ids.append(chat_id)
+            else:
+                log.warning(f"Bot is not admin in F_SUB channel {chat_id}, skipping.")
+        except Exception as e:
+            log.warning(f"Could not verify admin status for F_SUB {chat_id}: {e}")
 
     raw_data = await get_variable("r_sub", "")
     rsub_entries = [x.strip() for x in raw_data.split(",") if x.strip()]
     parsed_rsub = []
+
+    # Verify Admin Status for R_Sub
     for entry in rsub_entries:
         try:
             if "||" in entry:
                 chan_id_str, invite_link = entry.split("||")
-                parsed_rsub.append((int(chan_id_str.strip()), invite_link.strip(), entry))
+                chat_id = int(chan_id_str.strip())
+
+                # Verify Bot Admin
+                is_admin = False
+                try:
+                    member = await client.get_chat_member(chat_id, "me")
+                    if member.status in {ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER}:
+                        is_admin = True
+                    else:
+                        log.warning(f"Bot is not admin in R_SUB channel {chat_id}, skipping.")
+                except Exception as e:
+                     log.warning(f"Could not verify admin status for R_SUB {chat_id}: {e}")
+
+                if is_admin:
+                    parsed_rsub.append((chat_id, invite_link.strip(), entry))
         except ValueError:
             continue
 
     req_links = await get_variable("req_link", [])
 
     FSUB_CACHE['last_updated'] = now
-    FSUB_CACHE['fsub'] = fsub_ids
+    FSUB_CACHE['fsub'] = valid_fsub_ids
     FSUB_CACHE['rsub'] = parsed_rsub
     FSUB_CACHE['req_links'] = req_links
 
-    return fsub_ids, parsed_rsub, req_links
+    return valid_fsub_ids, parsed_rsub, req_links
 
 
 async def get_force_sub_ids():
     """Retrieve forced subscription channel IDs."""
     raw_fsub = await get_variable(
-        "F_sub", "-1002374561133 -1002252580234 -1002359972599"
+        "F_sub", ""
     )
     return [int(x.strip()) for x in raw_fsub.split() if x.strip()]
 
@@ -98,7 +126,7 @@ async def get_missing_channels(client, user_id):
     missing = []
 
     # Check Force Subs
-    fsub_ids, req_subs, req_links = await get_cached_fsub_config()
+    fsub_ids, req_subs, req_links = await get_cached_fsub_config(client)
 
     for channel_id in fsub_ids:
         if not await is_user_joined(client, channel_id, user_id):
