@@ -237,7 +237,7 @@ async def must_join_channel(client: Client, message: Message):
         message.continue_propagation()
         pass
 
-@Client.on_message(filters.private)
+# @Client.on_message(filters.private)
 async def subscribed(c, message, q=0):
     """
     Checks subscription.
