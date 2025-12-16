@@ -7,3 +7,5 @@ motor
 aiohttp
 asyncio
 aiofiles
+uvloop
+ujson
